@@ -7,7 +7,7 @@ from pathlib import Path
 # This version is a minimal "start moshi, wait for idle" loop.
 
 PORT = int(os.getenv("MOSHI_PORT", "8765"))
-CFG  = os.getenv("MOSHI_CONFIG", "/app/configs/config-tts.toml")
+CFG  = os.getenv("MOSHI_CONFIG", "/app/configs/config-joint.toml")
 IDLE_SECS = int(os.getenv("IDLE_SECS", "120"))
 
 def has_established_conn(port: int) -> bool:
