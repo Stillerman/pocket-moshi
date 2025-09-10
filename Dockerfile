@@ -5,6 +5,10 @@
 ########################
 FROM runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04 AS build
 
+# ---- NEW: choose the compute capability (can be overridden with --build-arg) ----
+ARG COMPUTE_CAP=80
+ENV CUDA_COMPUTE_CAP=${COMPUTE_CAP}
+
 # System deps for Rust + building
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
     curl ca-certificates build-essential pkg-config libssl-dev git \
