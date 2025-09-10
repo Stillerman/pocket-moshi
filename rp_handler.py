@@ -31,7 +31,7 @@ def start_moshi():
     ])
 
     # Wait a moment for Moshi to start up
-    time.sleep(2)
+    time.sleep(10)
     
     # Check if Moshi started successfully
     if moshi.poll() is not None:
@@ -48,32 +48,11 @@ def handler(job):
     if moshi is None:
         return {"error": result}
     
-    # Start monitoring loop in background
-    last_active = time.time()
+    # Return connection info immediately so client can connect
+    print(json.dumps({"msg": "moshi_ready", "returning_connection_info": result}), flush=True)
     
-    try:
-        # Monitor for connections and idle timeout
-        while True:
-            time.sleep(3)
-            
-            if has_established_conn(PORT):
-                last_active = time.time()
-            
-            if time.time() - last_active > IDLE_SECS:
-                print(json.dumps({"msg": "idle_timeout", "idle_seconds": IDLE_SECS}), flush=True)
-                break
-                
-            # Exit if moshi died
-            if moshi.poll() is not None:
-                print(json.dumps({"msg": "moshi_exited", "code": moshi.returncode}), flush=True)
-                break
-                
-    finally:
-        try:
-            moshi.terminate()
-            moshi.wait(timeout=10)
-        except Exception:
-            pass
+    # Note: In serverless, the container stays alive for a while after returning
+    # The monitoring will happen in background until container shuts down
     
     return result
 
