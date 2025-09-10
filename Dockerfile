@@ -46,7 +46,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
  && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install huggingface_hub safetensors moshi pydantic
+RUN pip install runpod huggingface_hub safetensors moshi pydantic
 
 # Copy Moshi binary
 COPY --from=build /root/.cargo/bin/moshi-server /usr/local/bin/moshi-server

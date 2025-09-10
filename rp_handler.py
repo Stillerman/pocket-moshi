@@ -1,10 +1,7 @@
 # /app/rp_handler.py
 import os, subprocess, time, json, socket
 from pathlib import Path
-
-# No runpod SDK needed if you just print progress to stdout for logs;
-# If you use runpod's python SDK, you can publish progress updates.
-# This version is a minimal "start moshi, wait for idle" loop.
+import runpod
 
 PORT = int(os.getenv("MOSHI_PORT", "8765"))
 CFG  = os.getenv("MOSHI_CONFIG", "/app/configs/config-joint.toml")
@@ -22,7 +19,7 @@ def has_established_conn(port: int) -> bool:
         pass
     return False
 
-def main():
+def start_moshi():
     # Determine our public ip (RunPod exposes it; clients will connect to it)
     public_ip = os.getenv("PUBLIC_IP") or subprocess.getoutput("hostname -I").split()[0]
     tcp_port = PORT
@@ -33,28 +30,53 @@ def main():
         "moshi-server","worker","--config", CFG, "--port", str(PORT)
     ])
 
-    last_active = time.time()
+    # Wait a moment for Moshi to start up
+    time.sleep(2)
+    
+    # Check if Moshi started successfully
+    if moshi.poll() is not None:
+        return None, f"Moshi failed to start with code {moshi.returncode}"
+    
+    return moshi, {"status": "ready", "public_ip": public_ip, "tcp_port": tcp_port}
 
-    # Simple liveness/idle loop
+def handler(job):
+    """RunPod serverless handler function"""
+    print(json.dumps({"msg": "job_received", "job_id": job.get("id")}), flush=True)
+    
+    moshi, result = start_moshi()
+    
+    if moshi is None:
+        return {"error": result}
+    
+    # Start monitoring loop in background
+    last_active = time.time()
+    
     try:
+        # Monitor for connections and idle timeout
         while True:
             time.sleep(3)
+            
             if has_established_conn(PORT):
                 last_active = time.time()
+            
             if time.time() - last_active > IDLE_SECS:
                 print(json.dumps({"msg": "idle_timeout", "idle_seconds": IDLE_SECS}), flush=True)
                 break
-            # exit if moshi died
+                
+            # Exit if moshi died
             if moshi.poll() is not None:
                 print(json.dumps({"msg": "moshi_exited", "code": moshi.returncode}), flush=True)
                 break
+                
     finally:
         try:
             moshi.terminate()
             moshi.wait(timeout=10)
         except Exception:
             pass
+    
+    return result
 
 if __name__ == "__main__":
-    main()
+    runpod.serverless.start({"handler": handler})
 
